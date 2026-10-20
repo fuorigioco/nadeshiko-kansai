@@ -1,0 +1,48 @@
+# main に push されたら、変更のあった年度フォルダ（.clasp.json があるもの）を Google Apps Script に反映する。
+name: clasp push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: clasp-push
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm install -g @google/clasp@3.4.1
+
+      - name: clasp の認証情報を配置
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then echo "::error::Secret CLASPRC_JSON が未設定です"; exit 1; fi
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: 変更のあった年度フォルダを push
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            dirs=$(ls -d */ | tr -d /)
+          else
+            dirs=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep / | cut -d/ -f1 | sort -u)
+          fi
+          for d in $dirs; do
+            [ -f "$d/.clasp.json" ] || continue
+            echo "::group::clasp push $d"
+            (cd "$d" && clasp push --force)
+            echo "::endgroup::"
+          done
