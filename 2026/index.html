@@ -632,6 +632,13 @@ E-mail：
   var b=document.getElementById('menuBtn'),m=document.getElementById('menu');
   b.addEventListener('click',function(){var o=m.classList.toggle('open');b.setAttribute('aria-expanded',o);});
   m.addEventListener('click',function(e){if(e.target.closest('a')){m.classList.remove('open');b.setAttribute('aria-expanded',false);}});
+  // GAS上では getFileB64、GitHub Pages などの静的公開では同じフォルダの f_*/v_*.html を直接読む。
+  var FILES={format:'f_format',form:'f_form',proof:'v_proof',guide:'v_guide',ad:'v_ad'};
+  function getFile(key,ok,ng){
+    if(window.google&&google.script&&google.script.run){google.script.run.withSuccessHandler(ok).withFailureHandler(ng).getFileB64(key);return;}
+    if(!FILES[key]){ng();return;}
+    fetch(FILES[key]+'.html').then(function(r){if(!r.ok)throw r;return r.text();}).then(ok,ng);
+  }
   function closeViewer(){var v=document.getElementById('viewer');if(v){v.remove();document.body.style.overflow='';}}
   function openViewer(key,title){
     closeViewer();
@@ -641,13 +648,12 @@ E-mail：
     v.querySelector('button').addEventListener('click',closeViewer);
     document.body.appendChild(v);document.body.style.overflow='hidden';
     var box=v.querySelector('.pg');
-    if(!(window.google&&google.script&&google.script.run)){box.innerHTML='<p class="vl">公開ページから開いてください。</p>';return;}
-    google.script.run.withSuccessHandler(function(json){
+    getFile(key,function(json){
       try{
         var pages=JSON.parse(json);box.innerHTML='';
         pages.forEach(function(b,i){var im=document.createElement('img');im.alt=title+' '+(i+1)+'ページ';im.src='data:image/jpeg;base64,'+b;box.appendChild(im);});
       }catch(err){box.innerHTML='<p class="vl">表示に失敗しました。時間をおいて、もう一度お試しください。</p>';}
-    }).withFailureHandler(function(){box.innerHTML='<p class="vl">表示に失敗しました。時間をおいて、もう一度お試しください。</p>';}).getFileB64(key);
+    },function(){box.innerHTML='<p class="vl">表示に失敗しました。時間をおいて、もう一度お試しください。</p>';});
   }
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeViewer();});
   document.addEventListener('click',function(e){
@@ -665,9 +671,8 @@ E-mail：
   document.addEventListener('click',function(e){
     var a=e.target.closest('a.dl[data-file]'); if(!a) return; e.preventDefault();
     if(a.classList.contains('busy')) return;
-    if(!(window.google&&google.script&&google.script.run)){alert('ダウンロードは公開ページから行ってください。');return;}
     a.classList.add('busy');
-    google.script.run.withSuccessHandler(function(b64){
+    getFile(a.dataset.file,function(b64){
       try{
         var bin=atob(String(b64).replace(/\s+/g,'')),arr=new Uint8Array(bin.length);
         for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
@@ -676,7 +681,7 @@ E-mail：
         setTimeout(function(){URL.revokeObjectURL(url);l.remove();},5000);
       }catch(err){alert('ダウンロードに失敗しました。時間をおいて、もう一度お試しください。');}
       a.classList.remove('busy');
-    }).withFailureHandler(function(){a.classList.remove('busy');alert('ダウンロードに失敗しました。時間をおいて、もう一度お試しください。');}).getFileB64(a.dataset.file);
+    },function(){a.classList.remove('busy');alert('ダウンロードに失敗しました。時間をおいて、もう一度お試しください。');});
   });
   var t=document.getElementById('toTop');
   window.addEventListener('scroll',function(){t.classList.toggle('show',window.scrollY>600);},{passive:true});
