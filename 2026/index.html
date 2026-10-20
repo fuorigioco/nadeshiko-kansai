@@ -632,10 +632,9 @@ E-mail：
   var b=document.getElementById('menuBtn'),m=document.getElementById('menu');
   b.addEventListener('click',function(){var o=m.classList.toggle('open');b.setAttribute('aria-expanded',o);});
   m.addEventListener('click',function(e){if(e.target.closest('a')){m.classList.remove('open');b.setAttribute('aria-expanded',false);}});
-  // GAS上では getFileB64、GitHub Pages などの静的公開では同じフォルダの f_*/v_*.html を直接読む。
+  // ダウンロード用ファイル（f_*.html：base64）と、閲覧用のページ画像（v_*.html：JSON）を同じフォルダから読む。
   var FILES={format:'f_format',form:'f_form',proof:'v_proof',guide:'v_guide',ad:'v_ad'};
   function getFile(key,ok,ng){
-    if(window.google&&google.script&&google.script.run){google.script.run.withSuccessHandler(ok).withFailureHandler(ng).getFileB64(key);return;}
     if(!FILES[key]){ng();return;}
     fetch(FILES[key]+'.html').then(function(r){if(!r.ok)throw r;return r.text();}).then(ok,ng);
   }
